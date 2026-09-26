@@ -4,7 +4,7 @@ Full variable reference, pulled from a live, tested deployment (fresh volume, no
 
 ## Service: SillyTavern
 
-Image: `ghcr.io/sillytavern/sillytavern:latest` · Volume: `/home/node/app/persist` · Healthcheck: none (see README — `/` redirects, Railway's checker doesn't follow it, and `/login` didn't resolve reliably either; container liveness is used instead)
+Image: `ghcr.io/sillytavern/sillytavern:latest` · Volume: `/home/node/app/persist` · Healthcheck: `/login`
 
 Start command (required — relocates state onto the volume, then seeds the admin password before handoff to the official entrypoint):
 ```
@@ -26,7 +26,9 @@ Networking: a single service domain (`<hasDomain>`, routes to port `8000`). No T
 
 ## Composer Setup Notes — Read Before Publishing
 
-**Do not set a healthcheck path.** `GET /` redirects (302) to `/login` whenever `SILLYTAVERN_ENABLEUSERACCOUNTS=true`, and Railway's healthcheck treats a redirect as a failure. `/login` itself returns 200 correctly when tested directly, but did not resolve the platform's deploy-success gate reliably in testing on this account — the root cause wasn't fully isolated (traced through SillyTavern's middleware chain without finding an obvious blocker) before an unrelated, service-specific control-plane issue was found and fixed by recreating the service. If you see a deploy stuck in a healthcheck-failure loop for several minutes with the container otherwise logging normally (booted, "listening on IPv4", no crashes), try removing the healthcheck path entirely before assuming the app itself is broken.
+**Set the healthcheck path to `/login`, not `/`.** `GET /` redirects (302) to `/login` whenever `SILLYTAVERN_ENABLEUSERACCOUNTS=true`, and Railway's healthcheck treats a redirect as a failure — every deploy will fail if the path is left at the default `/`. `/login` returns 200 directly, pre-auth, and passes reliably.
+
+If a deploy still gets stuck in a healthcheck-failure loop for several minutes despite `/login` being set, with the container otherwise logging normally (booted, "listening on IPv4", no crashes) — that's not an app or path problem. It's a sign the *service itself* is in a stuck control-plane state, independent of anything in its config. The fix is deleting and recreating the service with the same settings, not further healthcheck-path changes.
 
 **Verified live, fresh deployment (new volume, no build cache):**
 - Deploy reached `SUCCESS`.

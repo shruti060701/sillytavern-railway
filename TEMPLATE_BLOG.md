@@ -45,7 +45,7 @@ This wasn't verified by watching the deploy log turn green — it was verified b
 
 Persistence was verified across a redeploy as well — the volume-backed symlinks for `config`, `data`, and `plugins` survive a full container restart, so character cards and chat history aren't lost the next time you push a change or Railway cycles the deployment.
 
-One deliberate choice worth calling out: this template ships without a Railway healthcheck path configured. `GET /` redirects when accounts are enabled, which Railway's healthcheck doesn't follow and treats as a failure — a real, reproducible issue independent of anything specific to this template's setup. `/login` does return `200` correctly when tested directly, but didn't reliably satisfy Railway's own deploy-success gate in testing on this account, and the underlying reason wasn't fully pinned down after tracing through SillyTavern's request-handling code without finding an obvious cause. Since the container's own liveness — confirmed stable across many redeploys with no crashes — is a solid enough signal here, the template relies on that instead of forcing a healthcheck path that adds fragility without adding real confidence.
+One thing worth flagging explicitly: the healthcheck path matters here. `GET /` redirects (302) to `/login` whenever accounts are enabled, and Railway's healthcheck doesn't follow redirects — leaving it at the default `/` fails every deploy, even though the app is perfectly healthy. `/login` is the correct target: it returns `200` directly, pre-auth, and passes cleanly. This is set correctly in the template's own service config; if you're adapting the start command elsewhere, don't forget to point the healthcheck at `/login` too.
 
 ## Frequently Asked Questions
 
@@ -61,8 +61,8 @@ Yes, from inside SillyTavern's own account settings once you're logged in. The a
 ### Does this template modify SillyTavern's code?
 No. It's the unmodified official image — the only difference from a bare `docker run` is the start command's setup sequence, which relocates directories and runs a script the image already ships with.
 
-### Why is there no Railway healthcheck configured?
-`GET /` redirects when accounts are enabled, and Railway's healthcheck doesn't follow redirects — a genuine, reproducible mismatch. Rather than force a healthcheck path that adds a point of failure without solving that mismatch cleanly, this template relies on container liveness, which has been stable across every tested deployment.
+### Why is the healthcheck path `/login` instead of `/`?
+`GET /` redirects when accounts are enabled, and Railway's healthcheck doesn't follow redirects — pointing it at `/` fails every deploy regardless of whether the app is healthy. `/login` returns `200` directly without needing a session, so it's the path that actually reflects whether the app is up.
 
 ### Where can I download SillyTavern?
 Source is on GitHub at [github.com/SillyTavern/SillyTavern](https://github.com/SillyTavern/SillyTavern). Use this template to deploy the official image with the account-security gap closed automatically, in one click.

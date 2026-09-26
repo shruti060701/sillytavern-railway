@@ -43,7 +43,7 @@ See `TEMPLATE_COMPOSER_CHECKLIST.md` for the full variable reference.
 
 ## Healthcheck
 
-This template ships with **no Railway healthcheck path configured**, deliberately. `GET /` 302-redirects to `/login` whenever accounts are enabled (Railway's healthcheck doesn't follow redirects), and `/login` itself — while it does return 200 correctly — didn't resolve the deploy gate reliably in testing on this account either, for a reason not fully isolated. Since the container's own liveness is a fine signal here (verified across many redeploys with no crashes), the template relies on that instead of a brittle path.
+Set the **Healthcheck Path** to `/login` — not `/`. `GET /` 302-redirects to `/login` whenever accounts are enabled, and Railway's healthcheck doesn't follow redirects, so `/` will fail every deploy. `/login` returns 200 directly without needing auth, so it's the correct target and passes reliably.
 
 ## Verified
 
